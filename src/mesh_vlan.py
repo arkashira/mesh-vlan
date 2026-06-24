@@ -1,38 +1,57 @@
+import argparse
 import json
-from dataclasses import dataclass
-from typing import List
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
 
-@dataclass
-class SSID:
-    name: str
-    password: str
-
-class MeshVLAN:
+class MeshVLANConfig:
     def __init__(self):
-        self.ssids = []
-        self.radio_settings = {"2.4GHz": True, "5GHz": True}
+        self.config = {}
 
-    def create_ssid(self, name: str, password: str):
-        ssid = SSID(name, password)
-        self.ssids.append(ssid)
-        return ssid
+    def load_config(self, config_data):
+        self.config = json.loads(config_data)
 
-    def delete_ssid(self, name: str):
-        self.ssids = [ssid for ssid in self.ssids if ssid.name != name]
+    def save_config(self):
+        return json.dumps(self.config)
 
-    def update_radio_settings(self, settings: dict):
-        self.radio_settings = settings
+    def update_config(self, key, value):
+        self.config[key] = value
 
-    def get_ssids(self):
-        return self.ssids
+class MeshVLANWebUI(BaseHTTPRequestHandler):
+    def do_GET(self):
+        parsed_path = urlparse(self.path)
+        if parsed_path.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'<html><body><h1>Mesh VLAN Configurator</h1><a href="/config">Configure</a></body></html>')
+        elif parsed_path.path == '/config':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'config': mesh_vlan_config.config}).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-    def get_radio_settings(self):
-        return self.radio_settings
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        parsed_data = json.loads(post_data.decode())
+        mesh_vlan_config.update_config(parsed_data['key'], parsed_data['value'])
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Configuration updated')
 
-    def persist_settings(self):
-        # Simulate persisting settings
-        return self.radio_settings
+mesh_vlan_config = MeshVLANConfig()
 
-    def get_dashboard(self):
-        # Simulate getting dashboard data
-        return {"ssids": [ssid.name for ssid in self.ssids], "radio_settings": self.radio_settings}
+def run_server(port=8000):
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, MeshVLANWebUI)
+    print(f'Starting server on port {port}...')
+    httpd.serve_forever()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Mesh VLAN Web UI')
+    parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+    args = parser.parse_args()
+    run_server(args.port)

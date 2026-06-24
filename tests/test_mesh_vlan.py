@@ -1,30 +1,27 @@
-from mesh_vlan import MeshVLAN, SSID
+import json
+from unittest.mock import patch
+from mesh_vlan import MeshVLANConfig, MeshVLANWebUI, run_server
 
-def test_create_ssid():
-    mesh_vlan = MeshVLAN()
-    ssid = mesh_vlan.create_ssid("test_ssid", "test_password")
-    assert ssid.name == "test_ssid"
-    assert ssid.password == "test_password"
+def test_load_config():
+    config_data = '{"test_key": "test_value"}'
+    config = MeshVLANConfig()
+    config.load_config(config_data)
+    assert config.config == {"test_key": "test_value"}
 
-def test_delete_ssid():
-    mesh_vlan = MeshVLAN()
-    mesh_vlan.create_ssid("test_ssid", "test_password")
-    mesh_vlan.delete_ssid("test_ssid")
-    assert len(mesh_vlan.get_ssids()) == 0
+def test_save_config():
+    config = MeshVLANConfig()
+    config.config = {"test_key": "test_value"}
+    saved_config = config.save_config()
+    assert json.loads(saved_config) == {"test_key": "test_value"}
 
-def test_update_radio_settings():
-    mesh_vlan = MeshVLAN()
-    mesh_vlan.update_radio_settings({"2.4GHz": False, "5GHz": True})
-    assert mesh_vlan.get_radio_settings() == {"2.4GHz": False, "5GHz": True}
+def test_update_config():
+    config = MeshVLANConfig()
+    config.update_config("new_key", "new_value")
+    assert config.config["new_key"] == "new_value"
 
-def test_persist_settings():
-    mesh_vlan = MeshVLAN()
-    mesh_vlan.update_radio_settings({"2.4GHz": False, "5GHz": True})
-    persisted_settings = mesh_vlan.persist_settings()
-    assert persisted_settings == {"2.4GHz": False, "5GHz": True}
-
-def test_get_dashboard():
-    mesh_vlan = MeshVLAN()
-    mesh_vlan.create_ssid("test_ssid", "test_password")
-    dashboard = mesh_vlan.get_dashboard()
-    assert dashboard == {"ssids": ["test_ssid"], "radio_settings": {"2.4GHz": True, "5GHz": True}}
+@patch('mesh_vlan.HTTPServer')
+def test_run_server(mock_httpserver):
+    mock_server_instance = mock_httpserver.return_value
+    run_server(8000)
+    mock_httpserver.assert_called_once_with(('', 8000), MeshVLANWebUI)
+    mock_server_instance.serve_forever.assert_called_once()

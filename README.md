@@ -1,10 +1,5 @@
-# Mesh VLAN
+# Mesh VLAN Web UI
+A clean, responsive web UI for configuring Mesh VLAN.
 
-A simple implementation of a mesh VLAN system.
-
-## Features
-
-* Create and delete SSIDs
-* Update radio settings
-* Persist settings
-* Get dashboard data
+## Usage
+To run the server:
